@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>炸船遊戲</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin-top: 0;
+      opacity: 0.9;
+    }
+
+    .game-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .board-box {
+      text-align: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 45px);
+      grid-template-rows: repeat(8, 45px);
+      gap: 4px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .cell {
+      width: 45px;
+      height: 45px;
+      background: #38bdf8;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 20px;
+      user-select: none;
+    }
+
+    .cell:hover {
+      transform: scale(1.05);
+      background: #0ea5e9;
+    }
+
+    .hit {
+      background: #ef4444 !important;
+    }
+
+    .miss {
+      background: #94a3b8 !important;
+    }
+
+    .ship {
+      background: #22c55e;
+    }
+
+    .controls {
+      margin-top: 25px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      border: none;
+      padding: 12px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 16px;
+      background: #2563eb;
+      color: white;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .status {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .footer {
+      margin-top: 30px;
+      opacity: 0.7;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚢 炸船遊戲</h1>
+  <p>點擊右邊敵人的海域，把所有船炸掉！</p>
+
+  <div class="game-container">
+    <div class="board-box">
+      <h2>你的船</h2>
+      <div class="board" id="playerBoard"></div>
+    </div>
+
+    <div class="board-box">
+      <h2>敵人海域</h2>
+      <div class="board" id="enemyBoard"></div>
+    </div>
+  </div>
+
+  <div class="status" id="status">你的回合</div>
+
+  <div class="controls">
+    <button onclick="restartGame()">重新開始</button>
+  </div>
+
+  <div class="footer">
+    GitHub Pages 可直接部署 🎮
+  </div>
+
+  <script>
+    const SIZE = 8;
+    const SHIP_COUNT = 8;
+
+    let playerShips = [];
+    let enemyShips = [];
+    let playerHits = 0;
+    let enemyHits = 0;
+    let gameOver = false;
+
+    const playerBoard = document.getElementById('playerBoard');
+    const enemyBoard = document.getElementById('enemyBoard');
+    const statusText = document.getElementById('status');
+
+    function createBoard(boardElement, clickHandler) {
+      boardElement.innerHTML = '';
+
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+
+          if (clickHandler) {
+            cell.addEventListener('click', clickHandler);
+          }
+
+          boardElement.appendChild(cell);
+        }
+      }
+    }
+
+    function randomShips() {
+      const ships = [];
+
+      while (ships.length < SHIP_COUNT) {
+        const x = Math.floor(Math.random() * SIZE);
+        const y = Math.floor(Math.random() * SIZE);
+        const key = `${x},${y}`;
+
+        if (!ships.includes(key)) {
+          ships.push(key);
+        }
+      }
+
+      return ships;
+    }
+
+    function drawPlayerShips() {
+      const cells = playerBoard.querySelectorAll('.cell');
+
+      cells.forEach(cell => {
+        const key = `${cell.dataset.x},${cell.dataset.y}`;
+
+        if (playerShips.includes(key)) {
+          cell.classList.add('ship');
+          cell.textContent = '🚢';
+        }
+      });
+    }
+
+    function enemyAttack() {
+      if (gameOver) return;
+
+      const cells = [...playerBoard.querySelectorAll('.cell')];
+      const available = cells.filter(c =>
+        !c.classList.contains('hit') &&
+        !c.classList.contains('miss')
+      );
+
+      if (available.length === 0) return;
+
+      const target = available[Math.floor(Math.random() * available.length)];
+      const key = `${target.dataset.x},${target.dataset.y}`;
+
+      if (playerShips.includes(key)) {
+        target.classList.add('hit');
+        target.textContent = '💥';
+        enemyHits++;
+
+        statusText.textContent = '敵人擊中了你的船！';
+      } else {
+        target.classList.add('miss');
+        target.textContent = '🌊';
+
+        statusText.textContent = '敵人沒打中';
+      }
+
+      checkWinner();
+    }
+
+    function handleEnemyBoardClick(e) {
+      if (gameOver) return;
+
+      const cell = e.target;
+
+      if (
+        cell.classList.contains('hit') ||
+        cell.classList.contains('miss')
+      ) {
+        return;
+      }
+
+      const key = `${cell.dataset.x},${cell.dataset.y}`;
+
+      if (enemyShips.includes(key)) {
+        cell.classList.add('hit');
+        cell.textContent = '💥';
+        playerHits++;
+
+        statusText.textContent = '命中敵船！';
+      } else {
+        cell.classList.add('miss');
+        cell.textContent = '🌊';
+
+        statusText.textContent = '沒打中';
+      }
+
+      checkWinner();
+
+      if (!gameOver) {
+        setTimeout(enemyAttack, 700);
+      }
+    }
+
+    function checkWinner() {
+      if (playerHits >= SHIP_COUNT) {
+        statusText.textContent = '🎉 你贏了！';
+        gameOver = true;
+      }
+
+      if (enemyHits >= SHIP_COUNT) {
+        statusText.textContent = '😢 你輸了';
+        gameOver = true;
+      }
+    }
+
+    function restartGame() {
+      playerHits = 0;
+      enemyHits = 0;
+      gameOver = false;
+
+      playerShips = randomShips();
+      enemyShips = randomShips();
+
+      createBoard(playerBoard);
+      createBoard(enemyBoard, handleEnemyBoardClick);
+
+      drawPlayerShips();
+
+      statusText.textContent = '你的回合';
+    }
+
+    restartGame();
+  </script>
+</body>
+</html>
